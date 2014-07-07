@@ -684,8 +684,12 @@ def any_sparse_classifier(name):
         svc(name + '.svc'),
         sgd(name + '.sgd'),
         knn(name + '.knn', sparse_data=True),
+<<<<<<< HEAD
         multinomial_nb(name + '.multinomial_nb'),
         nearest_centroid(name + '.nearest_centroid', sparse_data=True),
+=======
+        multinomial_nb(name + '.multinomial_nb')
+>>>>>>> 12f854cbd6c54c2b97389dd4fe8fe0c2ee4c2bf4
         ])
 
 def pca(name, n_components=None, whiten=None, copy=True):
