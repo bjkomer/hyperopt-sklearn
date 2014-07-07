@@ -51,6 +51,13 @@ def sklearn_MultinomialNB(*args, **kwargs):
 
 
 @scope.define
+def sklearn_NearestCentroid(*args, **kwargs):
+    star_star_kwargs = kwargs.pop('starstar_kwargs')
+    kwargs.update(star_star_kwargs)
+    return sklearn.neighbors.NearestCentroid(*args, **kwargs)
+
+
+@scope.define
 def sklearn_PCA(*args, **kwargs):
     return sklearn.decomposition.PCA(*args, **kwargs)
 
@@ -410,19 +417,22 @@ def knn(name,
     def _name(msg):
         return '%s.%s_%s' % (name, 'knn', msg)
 
-    if sparse_data:
-      metric_args = { 'metric':'euclidean' }
+    if metric is None:
+      if sparse_data:
+        metric_args = { 'metric':'euclidean' }
+      else:
+        metric_args = hp.pchoice(_name('metric'), [
+          (0.65, { 'metric':'euclidean' }),
+          (0.10, { 'metric':'manhattan' }),
+          (0.10, { 'metric':'chebyshev' }),
+          (0.10, { 'metric':'minkowski',
+            'p':scope.int(hp.quniform(_name('minkowski_p'), 1, 5, 1))}),
+          (0.05, { 'metric':'wminkowski',
+            'p':scope.int(hp.quniform(_name('wminkowski_p'), 1, 5, 1)),
+            'w':hp.uniform( _name('wminkowski_w'), 0, 100 ) }),
+        ] )
     else:
-      metric_args = hp.pchoice(_name('metric'), [
-        (0.65, { 'metric':'euclidean' }),
-        (0.10, { 'metric':'manhattan' }),
-        (0.10, { 'metric':'chebyshev' }),
-        (0.10, { 'metric':'minkowski',
-          'p':scope.int(hp.quniform(_name('minkowski_p'), 1, 5, 1))}),
-        (0.05, { 'metric':'wminkowski',
-          'p':scope.int(hp.quniform(_name('wminkowski_p'), 1, 5, 1)),
-          'w':hp.uniform( _name('wminkowski_w'), 0, 100 ) }),
-      ] )
+      metric_args = { 'metric':metric }
 
     rval = scope.sklearn_KNeighborsClassifier(
         n_neighbors=scope.int(hp.quniform(
@@ -621,6 +631,43 @@ def multinomial_nb(name,
         )
     return rval
 
+def nearest_centroid(name,
+    sparse_data=False,
+    metric=None,
+    shrink_threshold=None,
+    ):
+
+    def _name(msg):
+      return '%s.%s_%s' % (name, 'multinomial_nb', msg)
+    
+    if metric is None:
+      if sparse_data:
+        metric_args = { 'metric':'euclidean' }
+      else:
+        metric_args = hp.pchoice(_name('metric'), [
+          (0.65, { 'metric':'euclidean' }),
+          (0.10, { 'metric':'manhattan' }),
+          (0.10, { 'metric':'chebyshev' }),
+          (0.10, { 'metric':'minkowski',
+            'p':scope.int(hp.quniform(_name('minkowski_p'), 1, 5, 1))}),
+          (0.05, { 'metric':'wminkowski',
+            'p':scope.int(hp.quniform(_name('wminkowski_p'), 1, 5, 1)),
+            'w':hp.uniform( _name('wminkowski_w'), 0, 100 ) }),
+        ] )
+    else:
+      metric_args = { 'metric':metric }
+
+    rval = scope.sklearn_MultinomialNB(
+        metric=hp.choice(
+            _name('metric'),
+            [ 'euclidean', False ] ) if metric is None else metric,
+        shrink_threshold=hp.quniform(
+            _name('shrink_threshold'),
+            0, 1, 0.001 ) if shrink_threshold is None else shrink_threshold,
+        starstar_kwargs=metric_args
+        )
+    return rval
+
 def any_classifier(name):
     return hp.choice('%s' % name, [
         svc(name + '.svc'),
@@ -628,6 +675,7 @@ def any_classifier(name):
         random_forest(name + '.random_forest'),
         extra_trees(name + '.extra_trees'),
         sgd(name + '.sgd'),
+        nearest_centroid(name + '.nearest_centroid'),
         ])
 
 def any_sparse_classifier(name):
@@ -635,7 +683,8 @@ def any_sparse_classifier(name):
         svc(name + '.svc'),
         sgd(name + '.sgd'),
         knn(name + '.knn', sparse_data=True),
-        multinomial_nb(name + '.multinomial_nb')
+        multinomial_nb(name + '.multinomial_nb'),
+        nearest_centroid(name + '.nearest_centroid', sparse_data=True),
         ])
 
 def pca(name, n_components=None, whiten=None, copy=True):
