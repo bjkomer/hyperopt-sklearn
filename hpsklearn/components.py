@@ -640,33 +640,34 @@ def nearest_centroid(name,
     def _name(msg):
       return '%s.%s_%s' % (name, 'nearest_centroid', msg)
     
-    if metric is None:
-      if sparse_data:
+    if sparse_data:
+      if metric is None:
         metric_args = { 'metric':'euclidean' }
       else:
-        metric_args = hp.pchoice(_name('metric'), [
-          (0.65, { 'metric':'euclidean' }),
-          (0.10, { 'metric':'manhattan' }),
-          (0.10, { 'metric':'chebyshev' }),
-          (0.10, { 'metric':'minkowski',
-            'p':scope.int(hp.quniform(_name('minkowski_p'), 1, 5, 1))}),
-          (0.05, { 'metric':'wminkowski',
-            'p':scope.int(hp.quniform(_name('wminkowski_p'), 1, 5, 1)),
-            'w':hp.uniform( _name('wminkowski_w'), 0, 100 ) }),
-        ] )
+        metric_args = { 'metric':metric }
+      # shrink_threshold is not supported for sparse data
+      rval = scope.sklearn_NearestCentroid(
+          starstar_kwargs=metric_args
+          )
     else:
-      metric_args = { 'metric':metric }
-
-    rval = scope.sklearn_MultinomialNB(
-        metric=hp.choice(
-            _name('metric'),
-            [ 'euclidean', False ] ) if metric is None else metric,
-        shrink_threshold=hp.quniform(
-            _name('shrink_threshold'),
-            0, 1, 0.001 ) if shrink_threshold is None else shrink_threshold,
-        starstar_kwargs=metric_args
-        )
+      metric_args = hp.pchoice(_name('metric'), [
+        (0.65, { 'metric':'euclidean' }),
+        (0.10, { 'metric':'manhattan' }),
+        (0.10, { 'metric':'chebyshev' }),
+        (0.10, { 'metric':'minkowski',
+          'p':scope.int(hp.quniform(_name('minkowski_p'), 1, 5, 1))}),
+        (0.05, { 'metric':'wminkowski',
+          'p':scope.int(hp.quniform(_name('wminkowski_p'), 1, 5, 1)),
+          'w':hp.uniform( _name('wminkowski_w'), 0, 100 ) }),
+      ] )
+      rval = scope.sklearn_NearestCentroid(
+          shrink_threshold=hp.quniform(
+              _name('shrink_threshold'),
+              0, 1, 0.001 ) if shrink_threshold is None else shrink_threshold,
+          starstar_kwargs=metric_args
+          )
     return rval
+
 
 def any_classifier(name):
     return hp.choice('%s' % name, [
