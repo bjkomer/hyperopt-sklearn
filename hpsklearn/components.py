@@ -638,7 +638,7 @@ def nearest_centroid(name,
     ):
 
     def _name(msg):
-      return '%s.%s_%s' % (name, 'multinomial_nb', msg)
+      return '%s.%s_%s' % (name, 'nearest_centroid', msg)
     
     if metric is None:
       if sparse_data:
