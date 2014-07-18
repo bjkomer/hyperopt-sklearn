@@ -40,7 +40,7 @@ class NonFiniteFeature(Exception):
     """
 
 def _cost_fn(argd, Xfit, yfit, Xval, yval, info, timeout,
-             _conn, best_loss=None):
+             _conn, loss_fn=None, best_loss=None):
     try:
         t_start = time.time()
         if 'classifier' in argd:
@@ -125,7 +125,10 @@ def _cost_fn(argd, Xfit, yfit, Xval, yval, info, timeout,
             rtype = 'return'
         else:
             info('Scoring on Xval of shape', Xval.shape)
-            loss = 1.0 - classifier.score(Xval,yval)
+            if loss_fn is None:
+              loss = 1.0 - classifier.score(Xval, yval)
+            else:
+              loss = loss_fn(Xval, yval)
             # -- squared standard error of mean
             lossvar = (loss * (1 - loss)) / max(1, len(yval) - 1)
             info('OK trial with accuracy %.1f +- %.1f' % (
@@ -197,6 +200,7 @@ class hyperopt_estimator(object):
                  space=None,
                  algo=None,
                  max_evals=100,
+                 loss_fn=None,
                  verbose=0,
                  trial_timeout=None,
                  fit_increment=1,
@@ -221,6 +225,11 @@ class hyperopt_estimator(object):
             Fit() will evaluate up to this-many configurations. Does not apply
             to fit_iter, which continues to search indefinitely.
 
+        loss_fn: callable
+            A function that takes the arguments (y_true, y_pred) and computes
+            a loss value to be minimized. If no function is specified,
+            1.0 - classifier.score(y_true, y_pred) is used.
+
         trial_timeout: float (seconds), or None for no timeout
             Kill trial evaluations after this many seconds.
 
@@ -235,6 +244,7 @@ class hyperopt_estimator(object):
             fit()  Saves after every `fit_increment` trial evaluations.
         """
         self.max_evals = max_evals
+        self.loss_fn = loss_fn
         self.verbose = verbose
         self.trial_timeout = trial_timeout
         self.fit_increment = fit_increment
@@ -296,7 +306,8 @@ class hyperopt_estimator(object):
                 Xfit=Xfit, yfit=yfit,
                 Xval=Xval, yval=yval,
                 info=self.info,
-                timeout=self.trial_timeout)
+                timeout=self.trial_timeout,
+                loss_fn=self.loss_fn)
         self._best_loss = float('inf')
 
         def fn_with_timeout(*args, **kwargs):
